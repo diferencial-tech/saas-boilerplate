@@ -1,6 +1,8 @@
 import { prisma } from '../database/prisma.js'
 import { logger } from '@saas/logger'
-import type { AuditAction, AuditEntity } from '@prisma/client'
+
+type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'LOGIN_FAILED'
+type AuditEntity = 'USER' | 'TENANT' | 'SESSION'
 
 interface CreateAuditLogParams {
   action: AuditAction
@@ -31,7 +33,7 @@ export function createAuditLog(params: CreateAuditLogParams): void {
         userAgent: params.userAgent ?? null,
       },
     })
-    .catch((err) => {
+    .catch((err: unknown) => {
       logger.error({ err }, 'Falha ao registrar audit log')
     })
 }

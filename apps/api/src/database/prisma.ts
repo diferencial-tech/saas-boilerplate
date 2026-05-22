@@ -21,7 +21,7 @@ if (env.NODE_ENV !== 'production') {
 
 prisma.$connect().then(() => {
   logger.info('Banco de dados conectado')
-}).catch((err) => {
+}).catch((err: unknown) => {
   logger.error({ err }, 'Erro ao conectar no banco de dados')
   process.exit(1)
 })
