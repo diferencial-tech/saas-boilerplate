@@ -1,12 +1,8 @@
 import { PrismaClient } from '@prisma/client'
-import { createHash } from 'crypto'
+import bcrypt from 'bcryptjs'
 import { ROLES } from '@saas/shared'
 
 const prisma = new PrismaClient()
-
-function hashPassword(password: string): string {
-  return createHash('sha256').update(password).digest('hex')
-}
 
 async function main() {
   console.log('🌱 Iniciando seed...')
@@ -19,15 +15,23 @@ async function main() {
   })
 
   if (existingAdmin) {
-    console.log('✅ Admin já existe, pulando criação')
+    console.log('♻️  Atualizando senha do admin existente...')
+    const passwordHash = await bcrypt.hash(adminPassword, 12)
+    await prisma.user.update({
+      where: { email: adminEmail },
+      data: { passwordHash },
+    })
+    console.log('✅ Senha do admin atualizada')
     return
   }
+
+  const passwordHash = await bcrypt.hash(adminPassword, 12)
 
   const admin = await prisma.user.create({
     data: {
       name: 'Admin',
       email: adminEmail,
-      passwordHash: hashPassword(adminPassword),
+      passwordHash,
       role: ROLES.ADMIN,
       tenantId: null,
     },
