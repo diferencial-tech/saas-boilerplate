@@ -1,5 +1,4 @@
 import type { FastifyInstance } from 'fastify'
-import { z } from 'zod'
 import {
   loginSchema,
   registerSchema,
@@ -17,6 +16,7 @@ import {
   sendUnauthorized,
   sendValidationError,
 } from '../../utils/index.js'
+import { prisma } from '../../database/prisma.js'
 
 export async function authRoutes(app: FastifyInstance) {
   app.post('/auth/register', async (request, reply) => {
@@ -26,8 +26,13 @@ export async function authRoutes(app: FastifyInstance) {
       return sendValidationError(reply, parsed.error.flatten().fieldErrors)
     }
 
+    const meta = {
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent'] ?? null,
+    }
+
     try {
-      const user = await registerService(parsed.data)
+      const user = await registerService(parsed.data, meta)
       return reply.status(201).send({ user })
     } catch (err) {
       if (err instanceof Error && err.message === 'EMAIL_ALREADY_EXISTS') {
@@ -44,8 +49,13 @@ export async function authRoutes(app: FastifyInstance) {
       return sendValidationError(reply, parsed.error.flatten().fieldErrors)
     }
 
+    const meta = {
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent'] ?? null,
+    }
+
     try {
-      const result = await loginService(parsed.data, app)
+      const result = await loginService(parsed.data, app, meta)
       return reply.status(200).send(result)
     } catch (err) {
       if (err instanceof Error && err.message === 'INVALID_CREDENTIALS') {
@@ -89,7 +99,17 @@ export async function authRoutes(app: FastifyInstance) {
         return sendValidationError(reply, parsed.error.flatten().fieldErrors)
       }
 
-      await logoutService(parsed.data.refreshToken)
+      const meta = {
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'] ?? null,
+      }
+
+      await logoutService(
+        parsed.data.refreshToken,
+        meta,
+        request.user.sub,
+      )
+
       return reply.status(204).send()
     },
   )
@@ -118,5 +138,3 @@ export async function authRoutes(app: FastifyInstance) {
     },
   )
 }
-
-import { prisma } from '../../database/prisma.js'

@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify'
 import { prisma } from '../database/prisma.js'
 import type { LoginInput, RegisterInput } from '@saas/validators'
 import { ROLES } from '@saas/shared'
+import { createAuditLog } from './audit.service.js'
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
@@ -13,7 +14,15 @@ function generateRefreshToken(): string {
   return randomBytes(64).toString('hex')
 }
 
-export async function registerService(data: RegisterInput) {
+interface RequestMeta {
+  ipAddress?: string | null
+  userAgent?: string | null
+}
+
+export async function registerService(
+  data: RegisterInput,
+  meta: RequestMeta = {},
+) {
   const existingUser = await prisma.user.findUnique({
     where: { email: data.email },
   })
@@ -41,24 +50,50 @@ export async function registerService(data: RegisterInput) {
     },
   })
 
+  createAuditLog({
+    action: 'CREATE',
+    entity: 'USER',
+    entityId: user.id,
+    userId: user.id,
+    newData: { name: user.name, email: user.email, role: user.role },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  })
+
   return user
 }
 
 export async function loginService(
   data: LoginInput,
   app: FastifyInstance,
+  meta: RequestMeta = {},
 ) {
   const user = await prisma.user.findUnique({
     where: { email: data.email },
   })
 
   if (!user || !user.isActive) {
+    createAuditLog({
+      action: 'LOGIN_FAILED',
+      entity: 'USER',
+      entityId: data.email,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    })
     throw new Error('INVALID_CREDENTIALS')
   }
 
   const passwordMatch = await bcrypt.compare(data.password, user.passwordHash)
 
   if (!passwordMatch) {
+    createAuditLog({
+      action: 'LOGIN_FAILED',
+      entity: 'USER',
+      entityId: user.id,
+      userId: user.id,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    })
     throw new Error('INVALID_CREDENTIALS')
   }
 
@@ -83,6 +118,15 @@ export async function loginService(
       userId: user.id,
       expiresAt,
     },
+  })
+
+  createAuditLog({
+    action: 'LOGIN',
+    entity: 'SESSION',
+    entityId: user.id,
+    userId: user.id,
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
   })
 
   return {
@@ -163,11 +207,26 @@ export async function refreshTokenService(
   }
 }
 
-export async function logoutService(token: string) {
+export async function logoutService(
+  token: string,
+  meta: RequestMeta = {},
+  userId?: string,
+) {
   const tokenHash = hashToken(token)
 
   await prisma.refreshToken.updateMany({
     where: { tokenHash },
     data: { revokedAt: new Date() },
   })
+
+  if (userId) {
+    createAuditLog({
+      action: 'LOGOUT',
+      entity: 'SESSION',
+      entityId: userId,
+      userId,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    })
+  }
 }
