@@ -2,6 +2,7 @@ import Fastify from 'fastify'
 import { logger } from '@saas/logger'
 import { jwtPlugin, redisPlugin, securityPlugin } from './plugins/index.js'
 import { env } from './config/env.js'
+import { authRoutes } from './http/routes/auth.routes.js'
 
 export async function buildApp() {
   const app = Fastify({
@@ -29,6 +30,8 @@ export async function buildApp() {
   await app.register(securityPlugin)
   await app.register(jwtPlugin)
   await app.register(redisPlugin)
+
+  await app.register(authRoutes, { prefix: '/api' })
 
   app.get('/health', async () => {
     return {
