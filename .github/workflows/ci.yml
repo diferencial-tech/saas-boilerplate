@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  quality:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: saas_user
+          POSTGRES_PASSWORD: saas_password
+          POSTGRES_DB: saas_db_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://saas_user:saas_password@localhost:5432/saas_db_test?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: super-secret-key-for-ci-with-32-chars-min
+      JWT_EXPIRES_IN: 15m
+      REFRESH_TOKEN_EXPIRES_IN: 7d
+      CORS_ORIGIN: http://localhost:3000
+      API_PORT: 3333
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeCheck — shared
+        run: pnpm --filter @saas/shared typecheck
+
+      - name: TypeCheck — validators
+        run: pnpm --filter @saas/validators typecheck
+
+      - name: TypeCheck — logger
+        run: pnpm --filter @saas/logger typecheck
+
+      - name: TypeCheck — api
+        run: pnpm --filter @saas/api typecheck
+
+      - name: Run database migrations
+        working-directory: apps/api
+        run: pnpm exec
