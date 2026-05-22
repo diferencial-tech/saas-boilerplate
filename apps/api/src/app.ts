@@ -4,11 +4,14 @@ import { jwtPlugin, redisPlugin, securityPlugin } from './plugins/index.js'
 import { env } from './config/env.js'
 import { authRoutes } from './http/routes/auth.routes.js'
 import { adminRoutes } from './http/routes/admin.routes.js'
+import { errorHandler } from './http/middlewares/index.js'
 
 export async function buildApp() {
   const app = Fastify({
     logger: false,
   })
+
+  errorHandler(app)
 
   app.addHook('onRequest', async (request) => {
     logger.info(
