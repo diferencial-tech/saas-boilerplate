@@ -23,6 +23,7 @@
     "@saas/logger": "workspace:*",
     "@saas/shared": "workspace:*",
     "@saas/validators": "workspace:*",
+    "@sentry/node": "^10.53.1",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "fastify": "^5.3.2",

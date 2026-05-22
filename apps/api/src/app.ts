@@ -1,6 +1,11 @@
 import Fastify from 'fastify'
 import { logger } from '@saas/logger'
-import { jwtPlugin, redisPlugin, securityPlugin } from './plugins/index.js'
+import {
+  jwtPlugin,
+  redisPlugin,
+  securityPlugin,
+  sentryPlugin,
+} from './plugins/index.js'
 import { env } from './config/env.js'
 import { authRoutes } from './http/routes/auth.routes.js'
 import { adminRoutes } from './http/routes/admin.routes.js'
@@ -10,6 +15,8 @@ export async function buildApp() {
   const app = Fastify({
     logger: false,
   })
+
+  await app.register(sentryPlugin)
 
   errorHandler(app)
 

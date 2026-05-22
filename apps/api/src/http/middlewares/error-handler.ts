@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyError } from 'fastify'
+import * as Sentry from '@sentry/node'
 import { logger } from '@saas/logger'
 
 export function errorHandler(app: FastifyInstance): void {
@@ -17,6 +18,21 @@ export function errorHandler(app: FastifyInstance): void {
         },
         'Erro não tratado',
       )
+
+      const isServerError = !error.statusCode || error.statusCode >= 500
+
+      if (isServerError) {
+        Sentry.captureException(error, {
+          user: request.user
+            ? { id: request.user.sub, email: request.user.email }
+            : undefined,
+          extra: {
+            method: request.method,
+            url: request.url,
+            body: request.body,
+          },
+        })
+      }
 
       if (error.statusCode === 429) {
         return reply.status(429).send({
