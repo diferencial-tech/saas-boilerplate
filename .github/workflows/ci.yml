@@ -69,21 +69,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build packages
+        run: |
+          pnpm --filter @saas/shared build
+          pnpm --filter @saas/validators build
+          pnpm --filter @saas/logger build
+
       - name: Generate Prisma Client
         working-directory: apps/api
         run: pnpm exec prisma generate
 
-      - name: TypeCheck — shared
-        run: pnpm --filter @saas/shared typecheck
-
-      - name: TypeCheck — validators
-        run: pnpm --filter @saas/validators typecheck
-
-      - name: TypeCheck — logger
-        run: pnpm --filter @saas/logger typecheck
-
       - name: TypeCheck — api
         run: pnpm --filter @saas/api typecheck
+
+      - name: TypeCheck — web
+        run: pnpm --filter @saas/web typecheck
 
       - name: Run database migrations
         working-directory: apps/api
@@ -91,3 +91,6 @@ jobs:
 
       - name: Build — api
         run: pnpm --filter @saas/api build
+
+      - name: Build — web
+        run: pnpm --filter @saas/web build
